@@ -3,58 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image to Grayscale Converter</title>
+    <title>Image Upload</title>
 </head>
 <body>
-    <h1>Upload an Image to Convert to Grayscale</h1>
-    <input type="file" id="imageInput" accept="image/*" />
-    <button id="uploadButton">Convert and Download</button>
+    <input type="file" id="imageInput" accept="image/*">
+    <button id="uploadButton">Upload Image</button>
+    <div id="result"></div>
 
     <script>
         document.getElementById('uploadButton').addEventListener('click', async () => {
             const fileInput = document.getElementById('imageInput');
-            if (fileInput.files.length === 0) {
-                alert('Please select an image to upload.');
-                return;
-            }
-
             const file = fileInput.files[0];
             const reader = new FileReader();
 
             reader.onloadend = async () => {
-                const base64Image = reader.result.split(',')[1]; // Get base64 without the data URL prefix
-
+                const base64Image = reader.result.split(',')[1]; // Get base64 part
                 try {
-                    const response = await fetch('https://iu5bp89vqe.execute-api.eu-north-1.amazonaws.com/dev/', { // Replace with your API Gateway URL
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ body: base64Image }),
-                    });
+                    const result = await uploadImage(base64Image);
+                    const imageData = result.image;
 
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
+                    // Display the image
+                    const imgElement = document.createElement('img');
+                    imgElement.src = `data:image/png;base64,${imageData}`;
+                    document.getElementById('result').appendChild(imgElement);
 
-                    const data = await response.json();
-
-                    // Create a link to download the grayscale image
-                    const blob = new Blob([Uint8Array.from(atob(data.body), c => c.charCodeAt(0))], { type: 'image/png' });
+                    // Download link
                     const link = document.createElement('a');
-                    link.href = window.URL.createObjectURL(blob);
-                    link.download = 'grayscale_image.png'; // Set the filename for download
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link); // Clean up the link
+                    link.href = `data:image/png;base64,${imageData}`;
+                    link.download = 'processed_image.png';
+                    link.innerHTML = 'Download Image';
+                    document.getElementById('result').appendChild(link);
                 } catch (error) {
-                    console.error('Error:', error);
-                    alert('An error occurred while processing your request.');
+                    console.error('Error uploading image:', error);
                 }
             };
 
-            reader.readAsDataURL(file); // Read the file as a Data URL
+            if (file) {
+                reader.readAsDataURL(file); // Read the file as a data URL
+            }
         });
+
+        async function uploadImage(base64Image) {
+            const response = await fetch('https://iu5bp89vqe.execute-api.eu-north-1.amazonaws.com/dev/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    body: base64Image // Send the base64 image
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+
+            return await response.json();
+        }
     </script>
 </body>
 </html>
